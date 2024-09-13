@@ -1,43 +1,55 @@
-require 'rubygems'
+# frozen_string_literal: true
+
 require 'sinatra'
 
 configure do
   enable :sessions
 end
 
-helpers do
-  def username
-    session[:identity] ? session[:identity] : 'Hello stranger'
-  end
-end
-
-before '/secure/*' do
-  unless session[:identity]
-    session[:previous_url] = request.path
-    @error = 'Sorry, you need to be logged in to visit ' + request.path
-    halt erb(:login_form)
-  end
-end
-
 get '/' do
-  erb 'Can you handle a <a href="/secure/place">secret</a>?'
+  erb :invite
 end
 
 get '/login/form' do
   erb :login_form
 end
 
-post '/login/attempt' do
-  session[:identity] = params['username']
-  where_user_came_from = session[:previous_url] || '/'
-  redirect to where_user_came_from
-end
-
 get '/logout' do
   session.delete(:identity)
-  erb "<div class='alert alert-message'>Logged out</div>"
+  erb :logout
 end
 
-get '/secure/place' do
-  erb 'This is a secret place that only <%=session[:identity]%> has access to!'
+get '/secret/place' do
+  erb :secret_place
+end
+
+before '/secret/*' do
+  unless session[:identity]
+    session[:previous_url] = request.path
+    @error = "Sorry, in order to visit '#{request.path}' you must log in"
+    @bg_color = 'bg-warning'
+    @font_color = 'text-dark'
+    halt erb(:login_form)
+  end
+end
+
+post '/login/attempt' do
+  username = params['username']
+  password = params['password']
+  if username == 'admin' && password == 'admin'
+    session[:identity] = params['username']
+    where_user_came_from = session[:previous_url] || '/'
+    redirect to where_user_came_from
+  else
+    @error = 'Wrong username or password'
+    @bg_color = 'bg-danger'
+    @font_color = 'text-white'
+    halt erb(:login_form)
+  end
+end
+
+helpers do
+  def username
+    session[:identity] ? session[:identity] : 'Hello stranger'
+  end
 end
